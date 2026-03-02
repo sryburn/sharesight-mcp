@@ -1,6 +1,8 @@
 # Sharesight MCP Server
 
-A Model Context Protocol (MCP) server that provides AI assistants with access to the [Sharesight](https://www.sharesight.com/) portfolio tracking platform via the v3 API.
+A Model Context Protocol (MCP) server that gives AI assistants read-only access to [Sharesight](https://www.sharesight.com/) portfolio performance data.
+
+This allows an AI agent to list your portfolios and retrieve a full performance breakdown — including all holdings and their individual performance — for any portfolio over any date range.
 
 ## Quick Start
 
@@ -36,28 +38,25 @@ Add to your Claude Desktop config file:
 
 Restart Claude Desktop and you're ready to go.
 
-## Overview
+## What can it do?
 
-This MCP server enables Claude and other AI assistants to interact with Sharesight accounts, allowing natural language queries and operations on investment portfolios, holdings, custom investments, and performance reports.
+Ask Claude things like:
 
-### What is Sharesight?
-
-Sharesight is a portfolio tracking platform that helps investors track their stocks, ETFs, mutual funds, and other investments across multiple markets. It provides performance reporting, dividend tracking, and tax reporting features.
-
-### What is MCP?
-
-The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard that enables AI assistants to securely connect to external data sources and tools.
-
-## Authentication
-
-This server uses the OAuth 2.0 **client credentials** grant type. Your `SHARESIGHT_CLIENT_ID` and `SHARESIGHT_CLIENT_SECRET` are passed as environment variables — no browser-based auth flow or stored token files required. Tokens are fetched automatically at startup and refreshed in memory when they expire.
+- *"How has my portfolio performed this year?"*
+- *"Which of my holdings has performed best over the last 6 months?"*
+- *"Show me my portfolio performance for the 2026 financial year."*
+- *"What are my biggest positions and how are they tracking?"*
 
 ## Tools
 
 | Tool | Description |
 |------|-------------|
-| `list_portfolios` | List all user portfolios with optional consolidated view |
-| `get_performance_report` | Detailed performance breakdown with gains, holdings, and benchmarks |
+| `list_portfolios` | List all portfolios in the account |
+| `get_performance_report` | Get a full performance breakdown for a portfolio, including all holdings and their gains, over a specified date range |
+
+## Authentication
+
+This server uses the OAuth 2.0 **client credentials** grant type. Your `SHARESIGHT_CLIENT_ID` and `SHARESIGHT_CLIENT_SECRET` are passed as environment variables — no browser-based auth flow or stored token files required. Tokens are fetched automatically and refreshed in memory when they expire.
 
 ## Install from Source
 
@@ -85,14 +84,6 @@ Then configure Claude Desktop to use the local build:
 }
 ```
 
-## Error Handling
-
-Common errors:
-- **401** - Invalid or expired credentials
-- **403** - Insufficient permissions
-- **404** - Resource not found
-- **422** - Validation error (check field values)
-
 ## Development
 
 ```bash
@@ -109,9 +100,9 @@ MIT — see [LICENSE](LICENSE). Original work by [Haizzz](https://github.com/Hai
 
 This is a fork of [Haizzz/sharesight-mcp](https://github.com/Haizzz/sharesight-mcp). Key changes from the original:
 
+- Stripped down to two read-only tools (`list_portfolios`, `get_performance_report`) covering the core portfolio performance use case
 - Switched from OAuth 2.0 authorization code flow to **client credentials** grant type, eliminating the need for a one-time browser-based auth setup and stored token files
 - Credentials are passed via environment variables only; no state is written to disk
-- Stripped down to two tools (`list_portfolios`, `get_performance_report`) to reduce AI agent complexity and limit API access to read-only operations
 
 ## Support
 
