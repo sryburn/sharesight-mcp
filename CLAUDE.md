@@ -88,6 +88,8 @@ npm start       # Run the compiled server
    );
    ```
 
+4. **Add types** to `src/types.ts` if the response contains new fields
+
 ## API Conventions
 
 ### Sharesight API v3
