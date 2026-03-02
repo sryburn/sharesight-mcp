@@ -6,27 +6,13 @@ A Model Context Protocol (MCP) server that provides AI assistants with access to
 
 ### Step 1: Get OAuth Credentials
 
-You'll need a **Client ID** and **Client Secret** from Sharesight to use this server.
+You'll need a **Client ID** and **Client Secret** from Sharesight.
 
-**How to get credentials:**
 - Contact Sharesight support at support@sharesight.com to request API access
 - Visit the [Sharesight API documentation](https://api.sharesight.com/doc/api/v3) for more information
 - API access may require a specific Sharesight plan
 
-### Step 2: Run One-Time Authentication
-
-```bash
-npx github:Haizzz/sharesight-mcp auth
-```
-
-The CLI will:
-1. Prompt for your Client ID and Client Secret
-2. Display a URL to open in your browser
-3. Ask you to log in to Sharesight and authorize the app
-4. Prompt you to paste the authorization code
-5. Save tokens locally (they refresh automatically)
-
-### Step 3: Add MCP Server Configuration
+### Step 2: Add MCP Server Configuration
 
 Add to your Claude Desktop config file:
 
@@ -38,7 +24,7 @@ Add to your Claude Desktop config file:
   "mcpServers": {
     "sharesight": {
       "command": "npx",
-      "args": ["-y", "github:Haizzz/sharesight-mcp", "serve"],
+      "args": ["-y", "github:sryburn/sharesight-mcp"],
       "env": {
         "SHARESIGHT_CLIENT_ID": "your_client_id",
         "SHARESIGHT_CLIENT_SECRET": "your_client_secret"
@@ -48,7 +34,7 @@ Add to your Claude Desktop config file:
 }
 ```
 
-Restart Claude Desktop and you're ready to go!
+Restart Claude Desktop and you're ready to go.
 
 ## Overview
 
@@ -61,6 +47,10 @@ Sharesight is a portfolio tracking platform that helps investors track their sto
 ### What is MCP?
 
 The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard that enables AI assistants to securely connect to external data sources and tools.
+
+## Authentication
+
+This server uses the OAuth 2.0 **client credentials** grant type. Your `SHARESIGHT_CLIENT_ID` and `SHARESIGHT_CLIENT_SECRET` are passed as environment variables — no browser-based auth flow or stored token files required. Tokens are fetched automatically at startup and refreshed in memory when they expire.
 
 ## Features
 
@@ -126,24 +116,20 @@ This server exposes **27 tools** covering all Sharesight v3 API endpoints:
 ## Install from Source
 
 ```bash
-git clone https://github.com/Haizzz/sharesight-mcp.git
+git clone https://github.com/sryburn/sharesight-mcp.git
 cd sharesight-mcp
 npm install
 npm run build
 ```
 
-Then run auth and configure:
-
-```bash
-node dist/index.js auth
-```
+Then configure Claude Desktop to use the local build:
 
 ```json
 {
   "mcpServers": {
     "sharesight": {
       "command": "node",
-      "args": ["/path/to/sharesight-mcp/dist/index.js", "serve"],
+      "args": ["/path/to/sharesight-mcp/dist/index.js"],
       "env": {
         "SHARESIGHT_CLIENT_ID": "your_client_id",
         "SHARESIGHT_CLIENT_SECRET": "your_client_secret"
@@ -153,19 +139,11 @@ node dist/index.js auth
 }
 ```
 
-## Token Storage
-
-OAuth tokens are stored at:
-- **Linux/macOS:** `~/.sharesight-mcp/tokens.json`
-- **Windows:** `%USERPROFILE%\.sharesight-mcp\tokens.json`
-
-Tokens refresh automatically. To re-authorize, delete the tokens file and run `sharesight-mcp auth` again.
-
 ## Error Handling
 
 Common errors:
-- **401** - Invalid or expired access token
-- **403** - Token revoked or insufficient permissions
+- **401** - Invalid or expired credentials
+- **403** - Insufficient permissions
 - **404** - Resource not found
 - **422** - Validation error (check field values)
 
@@ -179,7 +157,14 @@ npm start       # Run the server
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE). Original work by [Haizzz](https://github.com/Haizzz/sharesight-mcp).
+
+## Fork Notes
+
+This is a fork of [Haizzz/sharesight-mcp](https://github.com/Haizzz/sharesight-mcp). Key changes from the original:
+
+- Switched from OAuth 2.0 authorization code flow to **client credentials** grant type, eliminating the need for a one-time browser-based auth setup and stored token files
+- Credentials are passed via environment variables only; no state is written to disk
 
 ## Support
 

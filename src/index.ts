@@ -3,10 +3,6 @@
 /**
  * Sharesight MCP Server
  *
- * A CLI tool with two commands:
- * - `sharesight-mcp serve` - Run the MCP server (default)
- * - `sharesight-mcp auth` - One-time OAuth authentication
- *
  * @see https://api.sharesight.com/doc/api/v3
  * @see https://modelcontextprotocol.io/
  *
@@ -16,131 +12,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import * as readline from "readline";
 import { SharesightClient } from "./sharesight-client.js";
 import { OAuthManager } from "./oauth.js";
-
-// ============================================================================
-// Auth Command
-// ============================================================================
-
-function createReadlineInterface(): readline.Interface {
-  return readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-}
-
-function prompt(rl: readline.Interface, question: string): Promise<string> {
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      resolve(answer.trim());
-    });
-  });
-}
-
-async function getCredentials(): Promise<{ clientId: string; clientSecret: string }> {
-  let clientId = process.env.SHARESIGHT_CLIENT_ID?.trim() || "";
-  let clientSecret = process.env.SHARESIGHT_CLIENT_SECRET?.trim() || "";
-
-  if (clientId && clientSecret) {
-    return { clientId, clientSecret };
-  }
-
-  console.log("\n=== Sharesight One-Time Authentication ===\n");
-
-  const rl = createReadlineInterface();
-
-  if (!clientId) {
-    clientId = await prompt(rl, "Enter your Sharesight Client ID: ");
-    if (!clientId) {
-      rl.close();
-      console.error("\nError: Client ID is required.");
-      process.exit(1);
-    }
-  }
-
-  if (!clientSecret) {
-    clientSecret = await prompt(rl, "Enter your Sharesight Client Secret: ");
-    if (!clientSecret) {
-      rl.close();
-      console.error("\nError: Client Secret is required.");
-      process.exit(1);
-    }
-  }
-
-  rl.close();
-
-  return { clientId, clientSecret };
-}
-
-async function runAuth(): Promise<void> {
-  const { clientId, clientSecret } = await getCredentials();
-  const oauth = new OAuthManager({ clientId, clientSecret });
-
-  if (oauth.hasValidTokens()) {
-    console.log("\nAlready authenticated! Tokens are stored and valid.");
-    console.log("To re-authenticate, delete ~/.sharesight-mcp/tokens.json and run this again.");
-    process.exit(0);
-  }
-
-  const authUrl = oauth.getAuthorizationUrl();
-
-  console.log("\n1. Open this URL in your browser:\n");
-  console.log(`   ${authUrl}\n`);
-  console.log("2. Log in to Sharesight and authorize the application");
-  console.log("3. Copy the authorization code shown and paste it below\n");
-
-  const rl = createReadlineInterface();
-  const code = await prompt(rl, "Authorization code: ");
-  rl.close();
-
-  if (!code) {
-    console.error("\nError: No authorization code provided.");
-    process.exit(1);
-  }
-
-  try {
-    await oauth.exchangeCodeForTokens(code);
-    console.log("\nAuthentication successful!");
-    console.log("Tokens have been saved to ~/.sharesight-mcp/tokens.json");
-    console.log("\nYou can now use the Sharesight MCP server.");
-    process.exit(0);
-  } catch (error) {
-    console.error("\nAuthentication failed:", error instanceof Error ? error.message : error);
-    process.exit(1);
-  }
-}
-
-// ============================================================================
-// Serve Command
-// ============================================================================
-
-function createOAuthManager(): OAuthManager {
-  const clientId = process.env.SHARESIGHT_CLIENT_ID;
-  const clientSecret = process.env.SHARESIGHT_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    console.error(
-      "Error: Missing credentials. Set SHARESIGHT_CLIENT_ID and SHARESIGHT_CLIENT_SECRET environment variables."
-    );
-    process.exit(1);
-  }
-
-  const oauth = new OAuthManager({ clientId, clientSecret });
-
-  if (!oauth.hasValidTokens()) {
-    console.error(
-      "Error: Not authenticated. Please run the authentication setup first:\n\n" +
-      "  sharesight-mcp auth\n\n" +
-      "This only needs to be done once. After authentication, tokens are saved\n" +
-      "and the MCP server will use them automatically."
-    );
-    process.exit(1);
-  }
-
-  return oauth;
-}
 
 function formatResult(result: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
@@ -840,8 +713,18 @@ function registerTools(server: McpServer, client: SharesightClient) {
   );
 }
 
-async function runServe(): Promise<void> {
-  const oauth = createOAuthManager();
+async function main(): Promise<void> {
+  const clientId = process.env.SHARESIGHT_CLIENT_ID;
+  const clientSecret = process.env.SHARESIGHT_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    console.error(
+      "Error: Missing credentials. Set SHARESIGHT_CLIENT_ID and SHARESIGHT_CLIENT_SECRET environment variables."
+    );
+    process.exit(1);
+  }
+
+  const oauth = new OAuthManager({ clientId, clientSecret });
   const client = new SharesightClient(oauth);
 
   const server = new McpServer({
@@ -854,49 +737,6 @@ async function runServe(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Sharesight MCP server running on stdio");
-}
-
-// ============================================================================
-// CLI Entry Point
-// ============================================================================
-
-function printUsage(): void {
-  console.log(`
-Sharesight MCP Server
-
-Usage:
-  sharesight-mcp <command>
-
-Commands:
-  serve   Run the MCP server (default)
-  auth    One-time OAuth authentication setup
-
-Examples:
-  sharesight-mcp auth     # Authenticate with Sharesight
-  sharesight-mcp serve    # Start the MCP server
-  sharesight-mcp          # Same as 'serve'
-`);
-}
-
-async function main(): Promise<void> {
-  const command = process.argv[2] || "serve";
-
-  switch (command) {
-    case "auth":
-      await runAuth();
-      break;
-    case "serve":
-      await runServe();
-      break;
-    case "--help":
-    case "-h":
-      printUsage();
-      break;
-    default:
-      console.error(`Unknown command: ${command}`);
-      printUsage();
-      process.exit(1);
-  }
 }
 
 main().catch((error) => {

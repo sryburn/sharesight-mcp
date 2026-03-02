@@ -24,10 +24,10 @@
     "investment",
     "portfolio"
   ],
-  "author": "",
+  "author": "sryburn",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Haizzz/sharesight-mcp.git"
+    "url": "https://github.com/sryburn/sharesight-mcp.git"
   },
   "license": "MIT",
   "dependencies": {

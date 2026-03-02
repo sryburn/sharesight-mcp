@@ -16,8 +16,8 @@ This is an MCP (Model Context Protocol) server that wraps the Sharesight v3 API,
 ```
 sharesight-mcp/
 ├── src/
-│   ├── index.ts              # CLI entry point with serve and auth commands
-│   ├── oauth.ts              # OAuth 2.0 token management and refresh
+│   ├── index.ts              # MCP server entry point and tool definitions
+│   ├── oauth.ts              # OAuth 2.0 client credentials token management
 │   ├── sharesight-client.ts  # HTTP client for Sharesight API
 │   └── types.ts              # TypeScript interfaces for API types
 ├── dist/                     # Compiled output (gitignored)
@@ -29,16 +29,10 @@ sharesight-mcp/
 ## Key Files
 
 ### `src/index.ts`
-The main CLI entry point with two commands:
-- `sharesight-mcp serve` - Run the MCP server (default)
-- `sharesight-mcp auth` - One-time OAuth authentication
-Contains tool definitions using Zod schemas for validation.
+The entry point. Reads `SHARESIGHT_CLIENT_ID` and `SHARESIGHT_CLIENT_SECRET` from env vars, creates the OAuth manager and Sharesight client, registers all MCP tools, and connects the stdio transport. No CLI commands — it just runs.
 
 ### `src/oauth.ts`
-OAuth 2.0 manager class handling:
-- Authorization URL generation
-- Token exchange and storage
-- Automatic token refresh
+OAuth 2.0 manager using the **client credentials** grant type. Fetches a token on first use, caches it in memory, and re-fetches automatically when it expires (Sharesight tokens last 30 minutes). No file storage.
 
 ### `src/sharesight-client.ts`
 HTTP client class with methods for each API endpoint. All methods:
@@ -73,26 +67,25 @@ npm start       # Run the compiled server
 
 2. **Add types** to `src/types.ts` if needed
 
-3. **Add tool definition** to `tools` array in `src/index.ts`:
+3. **Add tool** to `registerTools()` in `src/index.ts`:
    ```typescript
-   {
-     name: "new_tool",
-     description: "Description of what it does",
-     inputSchema: {
-       type: "object",
-       properties: {
-         param: { type: "string", description: "..." }
-       },
-       required: ["param"]
+   server.registerTool(
+     "new_tool",
+     {
+       description: "Description of what it does",
+       inputSchema: z.object({
+         param: z.string().describe("..."),
+       }),
+     },
+     async (args) => {
+       try {
+         const result = await client.newMethod(args.param);
+         return formatResult(result);
+       } catch (error) {
+         return formatError(error);
+       }
      }
-   }
-   ```
-
-4. **Add case handler** in the switch statement:
-   ```typescript
-   case "new_tool":
-     result = await client.newMethod((args as { param: string }).param);
-     break;
+   );
    ```
 
 ## API Conventions
@@ -108,24 +101,23 @@ The client throws errors for non-2xx responses. The MCP handler catches these an
 
 ## Authentication
 
-Run `sharesight-mcp auth` once to authenticate interactively. Tokens are saved to `~/.sharesight-mcp/tokens.json` and refreshed automatically.
+Uses OAuth 2.0 client credentials grant type. Set `SHARESIGHT_CLIENT_ID` and `SHARESIGHT_CLIENT_SECRET` environment variables. No interactive auth flow or token files.
 
 ## Testing
 
 Currently no automated tests. Test manually:
 
-1. Run `node dist/index.js auth` to authenticate (one-time setup)
-2. Set `SHARESIGHT_CLIENT_ID` and `SHARESIGHT_CLIENT_SECRET` env vars
-3. Run `node dist/index.js serve`
-4. Use MCP inspector or Claude Desktop to test tools
+1. Set `SHARESIGHT_CLIENT_ID` and `SHARESIGHT_CLIENT_SECRET` env vars
+2. Run `node dist/index.js`
+3. Use MCP inspector or Claude Desktop to test tools
 
 ## Common Tasks
 
 ### Update an existing tool
-1. Find the tool in `src/index.ts` tools array
+1. Find the tool in `registerTools()` in `src/index.ts`
 2. Modify the `inputSchema` as needed
-3. Update the case handler if parameters changed
-4. Update client method in `src/sharesight-client.ts` if needed
+3. Update the handler if parameters changed
+4. Update the client method in `src/sharesight-client.ts` if needed
 
 ### Fix type errors
 1. Check `src/types.ts` matches actual API responses
@@ -133,13 +125,12 @@ Currently no automated tests. Test manually:
 3. Mark optional fields with `?`
 
 ### Debug API issues
-1. Check the access token is valid (not expired)
+1. Check `SHARESIGHT_CLIENT_ID` and `SHARESIGHT_CLIENT_SECRET` are set correctly
 2. Look at the error message from Sharesight
 3. Compare request against API documentation
 
 ## Notes
 
 - The server uses stdio transport (stdin/stdout)
-- Authentication: Run `sharesight-mcp auth` first to authenticate
-- OAuth tokens are stored at `~/.sharesight-mcp/tokens.json`
 - All tool responses are JSON stringified with 2-space indentation
+- Tokens are held in memory only — no files written to disk
