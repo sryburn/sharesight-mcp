@@ -111,6 +111,7 @@ This is a fork of [Haizzz/sharesight-mcp](https://github.com/Haizzz/sharesight-m
 
 - Switched from OAuth 2.0 authorization code flow to **client credentials** grant type, eliminating the need for a one-time browser-based auth setup and stored token files
 - Credentials are passed via environment variables only; no state is written to disk
+- Stripped down to two tools (`list_portfolios`, `get_performance_report`) to reduce AI agent complexity and limit API access to read-only operations
 
 ## Support
 
